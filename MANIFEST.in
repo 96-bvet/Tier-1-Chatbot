@@ -1,0 +1,6 @@
+include README_Version2.md
+include requirements.txt
+include requirements-dev.txt
+include pytest.ini
+recursive-include src *.py
+recursive-include tests *.py
