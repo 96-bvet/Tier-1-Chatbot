@@ -161,7 +161,8 @@ def create_app():
 def main():
     """Main entry point for the application."""
     app = create_app()
-    app.run(debug=True)
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(debug=debug_mode)
 
 if __name__ == '__main__':
     main()

@@ -65,6 +65,9 @@ export OPENAI_API_KEY="your-openai-api-key"
 export SYNCRO_SUBDOMAIN="your-syncro-subdomain"
 export SYNCRO_API_KEY="your-syncro-api-key"
 export SERP_API_KEY="your-serp-api-key"  # Optional
+
+# For development only - enables Flask debug mode
+export FLASK_DEBUG="true"  # Optional, defaults to false for security
 ```
 
 ## Package Structure
