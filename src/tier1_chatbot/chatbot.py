@@ -26,21 +26,27 @@ def get_ai_response(user_message, context="", api_key=None):
     elif not openai.api_key:
         openai.api_key = os.getenv('OPENAI_API_KEY')
     
-    # Enhanced prompt for AI inference with context
-    prompt = f"""
-    You are a tier 1 support chatbot for a fully remote company. Guide users through remediation for non-technical issues like password resets, email, or printers.
-    - Be helpful, step-by-step, and confirm actions.
-    - If the issue is complex or unresolved after guidance, suggest escalation to tier 2.
-    - Do not suggest on-site visits; focus on remote solutions like shipping if hardware-related.
-    - Pull from knowledge base if possible, but use logic for new queries.
-    Context from previous interaction: {context}
-    User says: {user_message}
-    """
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "system", "content": prompt}]
-    )
-    return response.choices[0].message['content']
+    if not openai.api_key:
+        return "AI service not configured. Please contact support."
+    
+    try:
+        # Enhanced prompt for AI inference with context
+        prompt = f"""
+        You are a tier 1 support chatbot for a fully remote company. Guide users through remediation for non-technical issues like password resets, email, or printers.
+        - Be helpful, step-by-step, and confirm actions.
+        - If the issue is complex or unresolved after guidance, suggest escalation to tier 2.
+        - Do not suggest on-site visits; focus on remote solutions like shipping if hardware-related.
+        - Pull from knowledge base if possible, but use logic for new queries.
+        Context from previous interaction: {context}
+        User says: {user_message}
+        """
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "system", "content": prompt}]
+        )
+        return response.choices[0].message['content']
+    except Exception as e:
+        return f"AI service error: Unable to process your request. Please try again or contact support."
 
 def search_external_info(query, api_key=None):
     """Search external information using SerpAPI."""
@@ -50,12 +56,15 @@ def search_external_info(query, api_key=None):
     if not api_key:
         return "No search API key configured."
     
-    url = f"https://serpapi.com/search.json?q={query}&api_key={api_key}"
-    response = requests.get(url)
-    if response.status_code == 200:
-        results = response.json().get('organic_results', [])
-        return results[0]['snippet'] if results else "No external info found."
-    return "Unable to search."
+    try:
+        url = f"https://serpapi.com/search.json?q={query}&api_key={api_key}"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            results = response.json().get('organic_results', [])
+            return results[0]['snippet'] if results else "No external info found."
+        return "Unable to search."
+    except Exception as e:
+        return f"Search failed: {str(e)}"
 
 def create_syncro_ticket(subject, description, subdomain=None, api_key=None):
     """Create a ticket in Syncro MSP."""
@@ -67,23 +76,26 @@ def create_syncro_ticket(subject, description, subdomain=None, api_key=None):
     if not subdomain or not api_key:
         return "Syncro MSP not configured. Please contact support directly."
     
-    url = f"https://{subdomain}.syncromsp.com/api/v1/tickets"
-    headers = {
-        'Authorization': f'Bearer {api_key}',
-        'Content-Type': 'application/json'
-    }
-    data = {
-        "subject": subject,
-        "description": description,
-        "status": "New",  # Adjust based on Syncro's ticket statuses
-        "priority": "Normal"
-    }
-    response = requests.post(url, headers=headers, json=data)
-    if response.status_code == 201:
-        ticket = response.json()
-        return f"Ticket created successfully. Ticket ID: {ticket.get('id')}"
-    else:
-        return f"Failed to create ticket: {response.text}"
+    try:
+        url = f"https://{subdomain}.syncromsp.com/api/v1/tickets"
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json'
+        }
+        data = {
+            "subject": subject,
+            "description": description,
+            "status": "New",  # Adjust based on Syncro's ticket statuses
+            "priority": "Normal"
+        }
+        response = requests.post(url, headers=headers, json=data, timeout=10)
+        if response.status_code == 201:
+            ticket = response.json()
+            return f"Ticket created successfully. Ticket ID: {ticket.get('id')}"
+        else:
+            return f"Failed to create ticket: {response.text}"
+    except Exception as e:
+        return f"Ticket creation failed: {str(e)}"
 
 def check_knowledge_base(user_message):
     """Check if user message matches knowledge base."""
@@ -124,7 +136,7 @@ def create_app():
             response = get_ai_response(user_message, context)
         
         # Handle escalation
-        if "escalate" in user_message.lower() or ("tier 2" in response.lower() and "escalate" in user_message.lower()):
+        if "escalate" in user_message.lower() or "tier 2" in response.lower():
             ticket_result = create_syncro_ticket("Tier 1 Escalation", f"User issue: {user_message}. Bot response: {response}")
             response += f" {ticket_result}"
         

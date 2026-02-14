@@ -1,3 +1,4 @@
+import os
 import pytest
 from unittest.mock import patch, MagicMock
 from tier1_chatbot.chatbot import (
@@ -110,6 +111,22 @@ class TestUtilityFunctions:
         assert response == "Test response"
         mock_openai.assert_called_once()
     
+    @patch('tier1_chatbot.chatbot.openai.ChatCompletion.create')
+    def test_get_ai_response_exception(self, mock_openai):
+        """Test AI response generation with exception."""
+        mock_openai.side_effect = Exception("API error")
+        
+        response = get_ai_response("test message", api_key="test-key")
+        assert "AI service error" in response
+    
+    @patch.dict(os.environ, {}, clear=True)
+    @patch('tier1_chatbot.chatbot.openai')
+    def test_get_ai_response_no_api_key(self, mock_openai):
+        """Test AI response generation without API key."""
+        mock_openai.api_key = None
+        response = get_ai_response("test message", api_key=None)
+        assert "not configured" in response.lower()
+    
     @patch('tier1_chatbot.chatbot.requests.get')
     def test_search_external_info_success(self, mock_get):
         """Test external search with successful response."""
@@ -133,6 +150,15 @@ class TestUtilityFunctions:
         
         result = search_external_info("test query", api_key="test-key")
         assert result == "No external info found."
+    
+    @patch('tier1_chatbot.chatbot.requests.get')
+    def test_search_external_info_exception(self, mock_get):
+        """Test external search with exception."""
+        mock_get.side_effect = Exception("Network error")
+        
+        result = search_external_info("test query", api_key="test-key")
+        assert "Search failed" in result
+        assert "Network error" in result
     
     def test_search_external_info_no_api_key(self):
         """Test external search without API key."""
@@ -171,6 +197,20 @@ class TestUtilityFunctions:
             api_key="test-key"
         )
         assert "failed" in result.lower()
+    
+    @patch('tier1_chatbot.chatbot.requests.post')
+    def test_create_syncro_ticket_exception(self, mock_post):
+        """Test Syncro ticket creation with exception."""
+        mock_post.side_effect = Exception("Connection timeout")
+        
+        result = create_syncro_ticket(
+            "Test Subject",
+            "Test Description",
+            subdomain="test",
+            api_key="test-key"
+        )
+        assert "Ticket creation failed" in result
+        assert "Connection timeout" in result
     
     def test_create_syncro_ticket_no_config(self):
         """Test Syncro ticket creation without configuration."""
